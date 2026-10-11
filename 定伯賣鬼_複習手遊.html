@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>定伯賣鬼：段考複習手遊</title>
+<style>
+:root{--bg:#0f172a;--panel:#1e293b;--panel2:#273449;--acc:#f59e0b;--hp:#22c55e;--ehp:#ef4444;--txt:#f1f5f9;--mut:#94a3b8;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#1e3a5f,#0f172a 60%);color:var(--txt);font-family:"標楷體","KaiU","BiauKai","Noto Sans TC",serif;min-height:100vh;display:flex;justify-content:center;}
+#app{width:min(1180px,100%);padding:14px;}
+.screen{display:none;} .screen.on{display:block;}
+.topbar{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid #334155;border-radius:12px;padding:8px 12px;margin-bottom:10px;flex-wrap:wrap;}
+.topbar .title{font-size:20px;font-weight:bold;color:var(--acc);}
+.topbar .sp{flex:1;}
+button{font-family:inherit;cursor:pointer;}
+.btn{background:var(--acc);border:none;color:#1c1005;font-weight:bold;border-radius:10px;padding:10px 18px;font-size:16px;}
+.btn:hover{filter:brightness(1.08);} .btn.ghost{background:#334155;color:var(--txt);}
+.btn.big{font-size:19px;padding:14px 26px;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+/* battle layout */
+.battle{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:12px;}
+@media (max-width:820px){.battle{grid-template-columns:1fr;}}
+.arena{background:linear-gradient(#16233d,#0f172a);border:1px solid #334155;border-radius:14px;padding:12px;text-align:center;position:relative;overflow:hidden;}
+.hpRow{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:14px;}
+.hpRow .nm{width:110px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar{flex:1;height:16px;background:#0b1220;border:1px solid #475569;border-radius:99px;overflow:hidden;}
+.bar>i{display:block;height:100%;width:100%;transition:width .35s;}
+.bar.me>i{background:linear-gradient(90deg,#16a34a,#4ade80);}
+.bar.foe>i{background:linear-gradient(90deg,#dc2626,#f87171);}
+.monster{font-size:96px;line-height:1.2;user-select:none;transition:transform .12s;}
+.monster.hit{animation:shake .35s;} @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-14px) rotate(-6deg)}50%{transform:translateX(12px)}75%{transform:translateX(-6px)}}
+.monster.atk{animation:lunge .35s;} @keyframes lunge{40%{transform:translateY(14px) scale(1.08)}}
+.player{font-size:56px;}
+.combo{font-size:15px;color:var(--acc);min-height:22px;font-weight:bold;}
+.qcard{background:var(--panel);border:1px solid #334155;border-radius:14px;padding:14px;}
+.qcard .meta{color:var(--mut);font-size:13px;margin-bottom:6px;}
+.qcard .stem{font-size:19px;line-height:1.6;margin-bottom:12px;}
+.opts{display:grid;gap:10px;}
+.opt{background:var(--panel2);border:2px solid #3b4c63;color:var(--txt);border-radius:10px;padding:12px;font-size:17px;text-align:left;line-height:1.5;}
+.opt:hover:not(:disabled){border-color:var(--acc);}
+.opt.right{border-color:#22c55e;background:#14532d;}
+.opt.wrong{border-color:#ef4444;background:#7f1d1d;}
+.exp{display:none;background:#0b1220;border:1px dashed #475569;border-radius:10px;padding:10px;margin-top:10px;font-size:15px;line-height:1.6;}
+.exp.show{display:block;}
+.nextRow{margin-top:10px;text-align:right;}
+/* menu */
+.menu{background:var(--panel);border:1px solid #334155;border-radius:14px;padding:22px;text-align:center;}
+.menu h1{margin:6px 0 2px;font-size:30px;color:var(--acc);}
+.menu p{color:var(--mut);}
+.stageGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:14px 0;}
+.stage{background:var(--panel2);border:2px solid #3b4c63;border-radius:12px;padding:12px;color:var(--txt);}
+.stage h3{margin:4px 0;} .stage small{color:var(--mut);}
+.stage.lock{opacity:.45;}
+.orig{max-height:150px;overflow:auto;background:#0b1220;border:1px solid #334155;border-radius:10px;padding:10px;font-size:14px;line-height:1.7;text-align:left;margin-top:12px;}
+.resLine{font-size:19px;margin:8px 0;}
+table.mist{width:100%;border-collapse:collapse;font-size:14px;} table.mist td,table.mist th{border:1px solid #475569;padding:6px;text-align:left;vertical-align:top;}
+.badge{display:inline-block;background:#334155;border-radius:99px;padding:2px 12px;font-size:13px;color:var(--txt);}
+.floatDmg{position:absolute;font-weight:bold;font-size:26px;pointer-events:none;animation:floatUp 1s forwards;}
+@keyframes floatUp{to{transform:translateY(-70px);opacity:0;}}
+.score{font-size:15px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <span class="title">定伯賣鬼：段考複習手遊</span>
+    <span class="sp"></span>
+    <span class="score" id="hudScore">分數 0</span>
+    <button class="btn ghost" id="btnSound">音效：開</button>
+    <button class="btn ghost" id="btnHome">回主選單</button>
+  </div>
+
+  <div class="screen on" id="scrMenu">
+    <div class="menu">
+      <div style="font-size:64px;">&#x9B3C;</div>
+      <h1>直面恐懼・智勇同行</h1>
+      <p>七年級國文・定伯賣鬼 40 題・共 4 關・答對攻擊魔王，答錯自己扣血</p>
+      <div>最高分：<b id="bestScore">0</b>　<span class="badge" id="clearBadge">尚未破關</span></div>
+      <div class="stageGrid" id="stageGrid"></div>
+      <div style="text-align:left;font-size:14px;color:var(--mut);">破關規則：玩家血量 100，答錯扣 12；魔王血量依題數而定，答對造成傷害，3 連擊以上有加成。血量歸零可重打該關。通關後可看錯題複習。</div>
+      <div class="orig" id="origBox"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="scrGame">
+    <div class="battle">
+      <div class="arena" id="arena">
+        <div class="hpRow"><span class="nm" id="foeName">魔王</span><div class="bar foe"><i id="foeHp"></i></div><span id="foeHpT"></span></div>
+        <div class="monster" id="monster">&#x9B3C;</div>
+        <div class="combo" id="combo"></div>
+        <div style="font-size:40px;">&#x2694;&#xFE0F;</div>
+        <div class="player">&#x52C9;&#x58EB;</div>
+        <div class="hpRow"><span class="nm">宋定伯（你）</span><div class="bar me"><i id="meHp"></i></div><span id="meHpT"></span></div>
+        <div class="score" id="stageInfo"></div>
+      </div>
+      <div class="qcard">
+        <div class="meta" id="qMeta"></div>
+        <div class="stem" id="qStem"></div>
+        <div class="opts" id="qOpts"></div>
+        <div class="exp" id="qExp"></div>
+        <div class="nextRow"><button class="btn" id="btnNext" style="display:none;">下一題</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="scrEnd">
+    <div class="menu">
+      <h1 id="endTitle">破關成功</h1>
+      <div class="resLine" id="endStats"></div>
+      <div id="mistWrap"></div>
+      <p><button class="btn big" id="btnAgain">再打一次</button>
+      <button class="btn ghost big" id="btnMenu2">回主選單</button></p>
+    </div>
+  </div>
+</div>
+
+<script>
+const Q = [{"id": 1, "stem": "本文出自下列哪一部典籍？", "opts": ["《搜神記》", "《世說新語》", "《聊齋誌異》", "《水經注》"], "ans": 0, "exp": "《搜神記》為晉代干寶所編志怪小說集，宋定伯捉鬼即收於其中。"}, {"id": 2, "stem": "作者干寶是哪一個朝代的人？", "opts": ["漢代", "晉代", "唐代", "宋代"], "ans": 1, "exp": "干寶為東晉史學家、文學家。"}, {"id": 3, "stem": "本文的文體性質最接近下列何者？", "opts": ["志怪小說", "山水遊記", "詔令奏議", "歷史傳記"], "ans": 0, "exp": "描寫人鬼相遇、化羊賣錢，屬於志怪。"}, {"id": 4, "stem": "「定伯誑之」的「誑」意思是：", "opts": ["告訴", "勸勉", "威嚇", "欺騙"], "ans": 3, "exp": "誑即欺騙。定伯假稱自己也是鬼。"}, {"id": 5, "stem": "「步行太亟」的「亟」意思是：", "opts": ["遙遠", "緩慢", "急促、快速", "危險"], "ans": 2, "exp": "亟指急迫。此處指步行勞累急促。"}, {"id": 6, "stem": "「可共遞相擔」的「擔」意思是：", "opts": ["擔心害怕", "輪流背負", "分擔費用", "承擔罪責"], "ans": 1, "exp": "遞相擔即輪流背負對方。"}, {"id": 7, "stem": "「不知有何所畏忌」的「畏忌」意思是：", "opts": ["敬愛懷念", "喜好親近", "害怕而忌諱", "尊敬效法"], "ans": 2, "exp": "畏忌即有所害怕、忌諱之物。"}, {"id": 8, "stem": "「聽之，瞭然無聲音」的「瞭然」意思是：", "opts": ["模糊不清", "忽然消失", "十分響亮", "清楚明白"], "ans": 3, "exp": "瞭然即清楚。聽得很清楚：鬼過水無聲。"}, {"id": 9, "stem": "「定伯自渡，漕漼作聲」形容什麼聲音？", "opts": ["人涉水發出的水聲", "風吹樹葉聲", "鬼哭聲", "羊叫聲"], "ans": 0, "exp": "漕漼為涉水聲。對比鬼無聲，突顯人鬼之別。"}, {"id": 10, "stem": "「鬼大呼，聲咋咋然」的「咋咋然」是：", "opts": ["小聲低語的樣子", "大聲呼叫的樣子", "水流湍急聲", "腳步聲"], "ans": 1, "exp": "咋咋然為大呼的擬聲說法。"}, {"id": 11, "stem": "「徑至宛市中」的「徑」意思是：", "opts": ["小路", "繞道", "直接", "離開"], "ans": 2, "exp": "徑指直接、徑直。"}, {"id": 12, "stem": "文末引用「於時石崇言」的主要作用是：", "opts": ["描寫風景", "抒發情感", "交代時間地點", "借名人言語增添可信度"], "ans": 3, "exp": "引用當時名人石崇的話，好像見證一般，增加真實感。"}, {"id": 13, "stem": "「惟不喜人唾」的「唾」正確注音是：", "opts": ["ㄊㄨㄛˋ", "ㄊㄨㄟˊ", "ㄊㄨㄛ", "ㄈㄟˋ"], "ans": 0, "exp": "唾讀作ㄊㄨㄛˋ，口液、吐口水。"}, {"id": 14, "stem": "「卿太重」的「重」正確讀音是：", "opts": ["ㄔㄨㄥˊ", "ㄓㄨㄥ", "ㄓㄨㄥˋ", "ㄨㄥˋ"], "ans": 2, "exp": "重量之重讀作ㄓㄨㄥˋ。"}, {"id": 15, "stem": "「夜行逢鬼」的「逢」字形辨析，下列正確的是：", "opts": ["夜行縫鬼", "夜行逢鬼", "夜行篷鬼", "夜行峰鬼"], "ans": 1, "exp": "逢為遇到。縫為縫補，形近容易混淆。"}, {"id": 16, "stem": "「步行太ㄐㄧˊ」正確用字是：", "opts": ["既", "即", "急", "亟"], "ans": 3, "exp": "亟指急迫。極指頂點，不要混淆。"}, {"id": 17, "stem": "「惟不喜人唾」的「惟」意思是：", "opts": ["只有", "思考", "雖然", "希望"], "ans": 0, "exp": "惟通唯，只有之意。"}, {"id": 18, "stem": "「化為一羊」的「化」意思是：", "opts": ["融化", "教化", "變化", "花費"], "ans": 2, "exp": "化為即變成。"}, {"id": 19, "stem": "定伯初見鬼便謊稱「我亦鬼」，主要原因是：", "opts": ["他真的以為自己是鬼", "機智自保，以便同行探查虛實", "想嚇跑鬼", "想與鬼交朋友"], "ans": 1, "exp": "以鬼的身分降低鬼的戒心，為後續智取鋪路。"}, {"id": 20, "stem": "鬼說「卿太重，將非鬼也？」顯示：", "opts": ["完全信任定伯", "故意諷刺定伯", "想攻擊定伯", "已經起疑，但仍可被說服"], "ans": 3, "exp": "鬼起了疑心但是天真單純，容易被新鬼身重之說說服。"}, {"id": 21, "stem": "定伯回答「我新鬼，故身重耳」，表現出：", "opts": ["急中生智，隨機應變", "據實以告", "推卸責任", "自暴自棄"], "ans": 0, "exp": "以新鬼為藉口圓謊，化解懷疑。"}, {"id": 22, "stem": "定伯問「我新鬼，不知有何所畏忌？」其用意是：", "opts": ["閒聊打發時間", "表示關心鬼", "套取鬼的弱點以預作準備", "想向鬼投降"], "ans": 2, "exp": "先探得弱點怕唾，後來用以制伏鬼。"}, {"id": 23, "stem": "「定伯令鬼先渡」的主要用意是：", "opts": ["講究禮讓", "觀察驗證人鬼差異", "害怕溺水", "想支開鬼獨自逃跑"], "ans": 1, "exp": "藉由渡水有無聲音來驗證人鬼之別，也是試探。"}, {"id": 24, "stem": "定伯自己渡水發出聲響，卻說「新死，不習渡水」，此舉顯示：", "opts": ["承認自己是人", "請求鬼原諒", "轉移話題失敗", "臨危不亂，善於圓謊"], "ans": 3, "exp": "再次以新字圓說，沉著不露破綻。"}, {"id": 25, "stem": "「行欲至宛市，便擔鬼著肩上，急持之」選在此時機，主因是：", "opts": ["快到人多熱鬧處，鬼難以逃脫且利於處置出售", "此時體力最好", "想休息", "鬼主動要求"], "ans": 0, "exp": "接近市集則有人氣、有買主，緊抓不放，時機剛好。"}, {"id": 26, "stem": "「便賣之，恐其變化，唾之」中「唾之」的原因是：", "opts": ["侮辱鬼", "增加售價", "利用鬼所忌之物，防止再變化逃脫", "消毒清潔"], "ans": 2, "exp": "鬼只怕人唾，所以吐口水來制住牠。呼應前文。"}, {"id": 27, "stem": "鬼「略無重」「渡水無聲」「化為一羊」共同顯示鬼的特性是：", "opts": ["力大無窮", "輕而無形、可變化", "善良正直", "足智多謀"], "ans": 1, "exp": "輕、無聲、可變化，都不是人的形體。"}, {"id": 28, "stem": "宋定伯的人物特質最佳概括是：", "opts": ["膽小懦弱", "殘暴貪財", "迷信無知", "沉著機智、勇敢果決"], "ans": 3, "exp": "夜裡遇到鬼不慌張，多次圓謊，最後綁住鬼賣掉。"}, {"id": 29, "stem": "本文中的鬼形象最接近：", "opts": ["單純輕信、容易被欺", "兇惡難纏", "足智多謀", "正直善良"], "ans": 0, "exp": "鬼多次被欺騙而不察覺，反而洩漏弱點，形象憨直。"}, {"id": 30, "stem": "本文主旨最適切的是：", "opts": ["鬼比人強大", "做生意最重要的是會賣羊", "以智勇戰勝恐懼，人能勝鬼", "人遇到鬼怪只能認命"], "ans": 2, "exp": "肯定人的膽識與智慧能夠戰勝未知的恐懼。"}, {"id": 31, "stem": "素養情境：夜間獨行遇到陌生人搭訕要求同行，最有智慧的做法是：", "opts": ["全盤托出個人資料", "保持冷靜應對，不輕易洩漏底細，並設法走向明亮人多處求助", "大聲斥罵激怒對方", "閉眼站立不動"], "ans": 1, "exp": "如同定伯：冷靜周旋、保護自己、找機會脫困。"}, {"id": 32, "stem": "有同學怕黑不敢夜行，依照本文精神，你會如何勸勉？", "opts": ["鬼一定存在，無法克服", "賣鬼賺錢最重要", "永遠不出門即可", "恐懼多來自未知，以認識與方法轉懼為勇"], "ans": 3, "exp": "呼應主旨：以智慧和勇氣勝過恐懼。"}, {"id": 33, "stem": "鬼以「卿太重」起疑，是運用生活經驗判斷，這屬於：", "opts": ["觀察證據加上推理", "迷信妄斷", "毫無根據", "權威命令"], "ans": 0, "exp": "由重量異常推論身分，屬於證據推理。"}, {"id": 34, "stem": "定伯渡水觀察（鬼無聲、人有聲），類似科學方法中的：", "opts": ["問卷調查", "文獻探討", "對照比較實驗", "投票表決"], "ans": 2, "exp": "一個為對照組、一個為比較組，比較差異。"}, {"id": 35, "stem": "文末引用石崇語作證，類似現代媒體中的哪種手法？", "opts": ["氣象預報", "引用見證人以證實事件", "廣告誇大", "小說虛構對話"], "ans": 1, "exp": "引用第三方名人背書，增加可信度，閱讀時仍然要查證。"}, {"id": 36, "stem": "「得錢千五百」以現代理財素養來看，正確觀念是：", "opts": ["金錢萬能", "鼓勵以詐騙牟利", "不必工作", "肯定臨機應變化險為利，但現實應循正當途徑獲利"], "ans": 3, "exp": "故事趣味不鼓勵詐欺，現實生活必須合法。"}, {"id": 37, "stem": "定伯「誑之」是否算不誠實？較符合素養思辨的評價是：", "opts": ["緊急自保的權宜之計，與一般詐欺牟利不同，應依脈絡判斷", "凡是說謊都是十惡不赦，不可原諒", "說謊值得鼓勵", "誠信毫不重要"], "ans": 0, "exp": "區分防衛性謊言與惡意詐欺，培養脈絡思考。"}, {"id": 38, "stem": "下列哪部作品也屬於志怪傳奇、描寫人鬼相遇？", "opts": ["《出師表》", "《岳陽樓記》", "《聊齋誌異．畫皮》", "《送友人》"], "ans": 2, "exp": "都是描寫鬼狐精怪，志怪傳統一脈相承。"}, {"id": 39, "stem": "情節排序：甲擔鬼急持不放 乙誑稱我亦鬼 丙令鬼先渡觀聲 丁遞相擔輪背 正確順序是：", "opts": ["甲乙丙丁", "乙丁丙甲", "丁乙甲丙", "乙丙丁甲"], "ans": 1, "exp": "先假裝身分，再輪流背負，接著渡水驗證，最後接近市集綁鬼。"}, {"id": 40, "stem": "若導演改編本文並強調素養精神，最適合的標語是：", "opts": ["見鬼就跑", "鬼比人強", "夜路不要走", "直面恐懼，智勇同行"], "ans": 3, "exp": "點出以智勇勝過未知恐懼的主旨。"}];
+const STAGES = [{"name": "第一關：夜行逢鬼", "monster": "遊魂小鬼", "desc": "夜行遇鬼，臨危不亂。答對攻擊，答錯扣血。", "qs": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}, {"name": "第二關：鬥智渡水", "monster": "渡水水鬼", "desc": "驗證人鬼之別，套取弱點。", "qs": [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]}, {"name": "第三關：智縛鬼", "monster": "咋咋厲鬼", "desc": "近市縛鬼，緊抓不放。", "qs": [21, 22, 23, 24, 25, 26, 27, 28, 29, 30]}, {"name": "最終關：宛市決戰", "monster": "化羊大魔王", "desc": "素養題組，直面恐懼，智勇同行。", "qs": [31, 32, 33, 34, 35, 36, 37, 38, 39, 40]}];
+const MON_ICON = ["👹","🌊","😈","🐏"];
+let sound = true, stageIdx = 0, qi = 0, meHP = 100, foeHP = 100, foeMax = 100;
+let score = 0, combo = 0, maxCombo = 0, wrongList = [], answered = false;
+const $ = id => document.getElementById(id);
+const byId = {}; Q.forEach(q => byId[q.id] = q);
+
+function beep(f, d){ if(!sound) return; try{
+  const ctx = beep.ctx || (beep.ctx = new (window.AudioContext||window.webkitAudioContext)());
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.connect(g); g.connect(ctx.destination); o.frequency.value = f; o.type = "sine";
+  g.gain.setValueAtTime(.18, ctx.currentTime); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + d);
+  o.start(); o.stop(ctx.currentTime + d);
+}catch(e){} }
+
+function show(id){ document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on")); $(id).classList.add("on"); }
+function save(k,v){ try{localStorage.setItem("dingbo_"+k, JSON.stringify(v));}catch(e){} }
+function load(k,d){ try{const v = localStorage.getItem("dingbo_"+k); return v==null?d:JSON.parse(v);}catch(e){ return d; } }
+
+function renderMenu(){
+  $("bestScore").textContent = load("best",0);
+  const cleared = load("cleared",[]);
+  $("clearBadge").textContent = cleared.length>=4 ? "四關全破・智勇雙全" : (cleared.length? "已破 "+cleared.length+" 關" : "尚未破關");
+  const g = $("stageGrid"); g.innerHTML = "";
+  STAGES.forEach((s,i)=>{
+    const lock = i>0 && !cleared.includes(i-1);
+    const b = document.createElement("button");
+    b.className = "stage"+(lock?" lock":"");
+    b.innerHTML = "<div style='font-size:34px;'>"+MON_ICON[i]+"</div><h3>"+s.name+"</h3><div>"+s.monster+"</div><small>"+s.desc+"</small><br><small>"+(lock?"需先通過前一關":"10 題")+"</small>";
+    b.disabled = lock;
+    b.onclick = ()=>startStage(i);
+    g.appendChild(b);
+  });
+  $("origBox").textContent = "【課文回顧】" + "南陽宋定伯，年少時，夜行逢鬼。問之，鬼言：「我是鬼。」鬼問：「汝復誰？」定伯誑之，言：「我亦鬼。」鬼問：「欲至何所？」答曰：「欲至宛市。」鬼言：「我亦欲至宛市。」遂行。數里，鬼言：「步行太亟，可共遞相擔，何如？」定伯曰：「大善。」鬼便先擔定伯數里。鬼言：「卿太重，將非鬼也？」定伯言：「我新鬼，故身重耳。」定伯因復擔鬼，鬼略無重。如是再三。定伯復言：「我新鬼，不知有何所畏忌？」鬼答言：「惟不喜人唾。」於是共行。道遇水，定伯令鬼先渡，聽之，瞭然無聲音。定伯自渡，漕漼作聲。鬼復言：「何以作聲？」定伯曰：「新死，不習渡水故耳，勿怪吾也。」行欲至宛市，定伯便擔鬼著肩上，急持之。鬼大呼，聲咋咋然，索下，不復聽之。徑至宛市中下著地，化為一羊，便賣之。恐其變化，唾之。得錢千五百，乃去。於時石崇言：「定伯賣鬼，得錢千五百文。」（晉干寶《搜神記》）";
+}
+
+function startStage(i){
+  stageIdx = i; qi = 0; meHP = 100; combo = 0; maxCombo = 0; wrongList = [];
+  foeMax = STAGES[i].qs.length * 10; foeHP = foeMax;
+  $("foeName").textContent = STAGES[i].monster;
+  updateBars(); show("scrGame"); renderQ();
+  $("stageInfo").textContent = STAGES[i].name + "・" + STAGES[i].qs.length + " 題";
+}
+function updateBars(){
+  $("meHp").style.width = Math.max(0,meHP)+"%"; $("meHpT").textContent = Math.max(0,meHP);
+  $("foeHp").style.width = (100*Math.max(0,foeHP)/foeMax)+"%"; $("foeHpT").textContent = Math.max(0,foeHP)+"/"+foeMax;
+  $("hudScore").textContent = "分數 "+score;
+}
+function floatText(txt, color){
+  const a = $("arena"), s = document.createElement("span");
+  s.className = "floatDmg"; s.textContent = txt; s.style.color = color;
+  s.style.left = (30+Math.random()*50)+"%"; s.style.top = "38%";
+  a.appendChild(s); setTimeout(()=>s.remove(), 1000);
+}
+function renderQ(){
+  answered = false;
+  const qid = STAGES[stageIdx].qs[qi], q = byId[qid];
+  $("monster").textContent = MON_ICON[stageIdx];
+  $("qMeta").textContent = "第 "+(qi+1)+" / "+STAGES[stageIdx].qs.length+" 題・題號 "+qid;
+  $("qStem").textContent = q.stem;
+  $("qExp").className = "exp"; $("qExp").textContent = "";
+  $("btnNext").style.display = "none"; $("combo").textContent = combo>=2 ? "COMBO x"+combo : "";
+  const box = $("qOpts"); box.innerHTML = "";
+  q.opts.forEach((t,oi)=>{
+    const b = document.createElement("button");
+    b.className = "opt"; b.textContent = "("+"ABCD"[oi]+") "+t;
+    b.onclick = ()=>answer(oi, b);
+    box.appendChild(b);
+  });
+}
+function answer(oi, btn){
+  if(answered) return; answered = true;
+  const qid = STAGES[stageIdx].qs[qi], q = byId[qid];
+  const btns = $("qOpts").children;
+  [...btns].forEach(b=>b.disabled = true);
+  btns[q.ans].classList.add("right");
+  if(oi === q.ans){
+    combo++; maxCombo = Math.max(maxCombo, combo);
+    const dmg = 10 + Math.min(10, combo*2);
+    foeHP -= dmg; score += 100 + combo*20;
+    $("monster").classList.remove("hit"); void $("monster").offsetWidth; $("monster").classList.add("hit");
+    floatText("-"+dmg, "#fbbf24"); beep(660,.15); setTimeout(()=>beep(880,.15),120);
+  } else {
+    btn.classList.add("wrong"); combo = 0;
+    meHP -= 12;
+    const m = $("monster"); m.classList.remove("atk"); void m.offsetWidth; m.classList.add("atk");
+    floatText("你 -12", "#f87171"); beep(200,.25);
+    wrongList.push(qid);
+  }
+  $("qExp").textContent = "解析："+q.exp+"（正確答案 "+ "ABCD"[q.ans] +"）";
+  $("qExp").className = "exp show";
+  updateBars();
+  $("btnNext").style.display = "";
+  $("btnNext").textContent = (qi+1 >= STAGES[stageIdx].qs.length) ? "結算" : "下一題";
+}
+$("btnNext").onclick = ()=>{
+  if(meHP <= 0){ gameOver(false); return; }
+  if(foeHP <= 0 || qi+1 >= STAGES[stageIdx].qs.length){ stageClear(); return; }
+  qi++; renderQ();
+};
+function stageClear(){
+  const cleared = load("cleared",[]);
+  if(!cleared.includes(stageIdx)){ cleared.push(stageIdx); save("cleared",cleared); }
+  const best = load("best",0); if(score>best) save("best",score);
+  if(stageIdx>=3){ gameOver(true); return; }
+  gameOver(true, true);
+}
+function gameOver(win, cont){
+  show("scrEnd");
+  $("endTitle").textContent = !win ? "血量歸零・再接再厲" : (stageIdx>=3 ? "四關全破・賣鬼成功" : STAGES[stageIdx].name+" 通過");
+  const acc = STAGES[stageIdx].qs.length - wrongList.length;
+  $("endStats").innerHTML = "本關答對 "+acc+" / "+STAGES[stageIdx].qs.length+"・最高連擊 x"+maxCombo+"・總分 "+score;
+  const w = $("mistWrap");
+  if(!wrongList.length){ w.innerHTML = "<p>全部答對，太厲害了。</p>"; }
+  else{
+    let h = "<h3>錯題複習（"+wrongList.length+" 題）</h3><table class='mist'><tr><th>題</th><th>題目與解析</th></tr>";
+    wrongList.forEach(id=>{ const q = byId[id];
+      h += "<tr><td>"+id+"."+ "ABCD"[q.ans] +"</td><td>"+q.stem+"<br>選項："+q.opts.map((t,i)=>"("+"ABCD"[i]+")"+t).join("／")+"<br>解析："+q.exp+"</td></tr>"; });
+    w.innerHTML = h+"</table>";
+  }
+  const again = $("btnAgain");
+  if(!win){ again.textContent = "重打本關"; again.onclick = ()=>{ resetRun(); startStage(stageIdx); }; }
+  else if(cont){ again.textContent = "挑戰下一關"; again.onclick = ()=>{ resetRun(); startStage(stageIdx+1); }; }
+  else { again.textContent = "再打一次"; again.onclick = ()=>{ resetRun(); startStage(0); }; }
+}
+function resetRun(){ score = 0; $("hudScore").textContent = "分數 0"; }
+$("btnAgain").onclick = ()=>{};
+$("btnMenu2").onclick = ()=>{ renderMenu(); show("scrMenu"); };
+$("btnHome").onclick = ()=>{ renderMenu(); show("scrMenu"); };
+$("btnSound").onclick = e=>{ sound=!sound; e.target.textContent = "音效："+(sound?"開":"關"); };
+renderMenu();
+</script>
+</body>
+</html>
